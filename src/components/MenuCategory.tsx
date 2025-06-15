@@ -21,6 +21,14 @@ export const MenuCategory: React.FC<MenuCategoryProps> = ({
   // Capitalize the category name for display
   const displayCategory = category.charAt(0).toUpperCase() + category.slice(1);
 
+  // Filter items to only show those with prices
+  const itemsWithPrices = items.filter(item => Object.keys(item.prices).length > 0);
+
+  // Don't render the category if no items have prices
+  if (itemsWithPrices.length === 0) {
+    return null;
+  }
+
   return (
     <Card className="bg-white/90 backdrop-blur-sm">
       <CardContent className="p-6">
@@ -28,7 +36,7 @@ export const MenuCategory: React.FC<MenuCategoryProps> = ({
           {displayCategory}
         </h2>
         <div className="grid gap-4">
-          {items.map((item, index) => (
+          {itemsWithPrices.map((item, index) => (
             <div
               key={`${item.name}-${index}`}
               className={`flex justify-between items-center p-4 rounded-lg transition-colors ${
@@ -46,18 +54,16 @@ export const MenuCategory: React.FC<MenuCategoryProps> = ({
                     </span>
                   )}
                 </h3>
-                {Object.keys(item.prices).length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {Object.entries(item.prices).map(([size, price]) => (
-                      <span
-                        key={size}
-                        className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded"
-                      >
-                        {size} ${price}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {Object.entries(item.prices).map(([size, price]) => (
+                    <span
+                      key={size}
+                      className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded"
+                    >
+                      {size} ${Math.round(price)}
+                    </span>
+                  ))}
+                </div>
               </div>
               
               {orderMode && currentPeriod !== 'closed' && (

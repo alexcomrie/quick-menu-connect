@@ -50,6 +50,9 @@ export const fetchMenuItems = async (menuSheetUrl: string): Promise<MenuItem[]> 
                 const name = (row[1] || '').trim();
                 const priceAndSize = (row[2] || '').trim();
                 const periodRaw = (row[3] || '').toLowerCase().trim();
+                const special = (row[4] || '').trim();
+                const specialOption = (row[5] || '').toLowerCase().trim();
+                const specialCap = (row[6] || '').trim();
                 
                 // Skip rows with missing essential data
                 if (!category || !name) {
@@ -88,13 +91,33 @@ export const fetchMenuItems = async (menuSheetUrl: string): Promise<MenuItem[]> 
                 // Determine period - default to breakfast if not lunch
                 const period: 'breakfast' | 'lunch' = periodRaw === 'lunch' ? 'lunch' : 'breakfast';
 
+                // Parse special cap
+                let parsedSpecialCap: number | 'max' | '' = '';
+                if (specialCap) {
+                  if (specialCap.toLowerCase() === 'max') {
+                    parsedSpecialCap = 'max';
+                  } else {
+                    const capNumber = parseInt(specialCap);
+                    if (!isNaN(capNumber)) {
+                      parsedSpecialCap = capNumber;
+                    }
+                  }
+                }
+
+                // Parse specials (comma-separated list)
+                const specials = special ? special.split(',').map(s => s.trim()).filter(s => s) : [];
+
                 const menuItem: MenuItem = {
                   name,
                   priceAndSize,
                   period,
-                  type: category, // Use the actual category from CSV
+                  type: category, // Use the actual category from CSV as-is
                   gravey: '',
                   prices,
+                  special,
+                  specialOption: (specialOption === 'select' || specialOption === 'exclude') ? specialOption : '',
+                  specialCap: parsedSpecialCap,
+                  specials,
                 };
                 
                 console.log(`Created menu item:`, menuItem);

@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Plus, Minus, X } from 'lucide-react';
 import { Restaurant, MenuItem, OrderItem, Order } from '../types/restaurant';
 import { useToast } from '@/hooks/use-toast';
@@ -32,6 +33,8 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [showOrderBuilder, setShowOrderBuilder] = useState(false);
   const [currentOrder, setCurrentOrder] = useState<Partial<OrderItem>>({});
+  const [selectedSpecials, setSelectedSpecials] = useState<string[]>([]);
+  const [selectedSecondSpecials, setSelectedSecondSpecials] = useState<string[]>([]);
   const { toast } = useToast();
 
   // Fixed categories order - matching the specified requirements
@@ -39,8 +42,8 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
 
   // Group menu items by their type, ensuring proper mapping
   const groupedItems = menuItems.reduce((acc, item) => {
-    // Map soup type to gravey for consistency with Flutter code
-    const type = item.type.toLowerCase() === 'soup' ? 'gravey' : item.type.toLowerCase();
+    // Use the actual category from the CSV (normalize to lowercase for consistency)
+    const type = item.type.toLowerCase();
     if (!acc[type]) acc[type] = [];
     acc[type].push(item);
     return acc;
@@ -77,6 +80,8 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
     console.log('Adding item:', item, 'from category:', category);
     setSelectedMenuItem(item);
     setSelectedCategory(category);
+    setSelectedSpecials([]);
+    setSelectedSecondSpecials([]);
     
     if (Object.keys(item.prices).length === 0) {
       toast({ 
@@ -101,6 +106,7 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
         gravey: [],
         quantity: 1,
         isMix: false,
+        specials: [],
       });
       setShowOrderBuilder(true);
     } else {
@@ -122,6 +128,7 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
         gravey: [],
         quantity: 1,
         isMix: false,
+        specials: [],
       });
       setShowSizeDialog(false);
       setShowOrderBuilder(true);
@@ -138,6 +145,33 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
         if (currentOrder.selectedSize !== 'Med' && currentOrder.selectedSize !== 'Lrg') {
           toast({ title: "Mix meals only available in Medium or Large size.", variant: "destructive" });
           return;
+        }
+      }
+
+      // Validate specials selection
+      const menuItem = currentOrder.menuItem;
+      if (menuItem.specialOption === 'select' && menuItem.specials && menuItem.specials.length > 0) {
+        if (selectedSpecials.length === 0) {
+          toast({ title: "Please select required options for this item.", variant: "destructive" });
+          return;
+        }
+        if (typeof menuItem.specialCap === 'number' && selectedSpecials.length > menuItem.specialCap) {
+          toast({ title: `You can only select up to ${menuItem.specialCap} options.`, variant: "destructive" });
+          return;
+        }
+      }
+
+      if (currentOrder.isMix && currentOrder.secondMenuItem) {
+        const secondMenuItem = currentOrder.secondMenuItem;
+        if (secondMenuItem.specialOption === 'select' && secondMenuItem.specials && secondMenuItem.specials.length > 0) {
+          if (selectedSecondSpecials.length === 0) {
+            toast({ title: "Please select required options for the second item.", variant: "destructive" });
+            return;
+          }
+          if (typeof secondMenuItem.specialCap === 'number' && selectedSecondSpecials.length > secondMenuItem.specialCap) {
+            toast({ title: `You can only select up to ${secondMenuItem.specialCap} options for the second item.`, variant: "destructive" });
+            return;
+          }
         }
       }
 
@@ -158,10 +192,14 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
         gravey: currentOrder.gravey || [],
         drink: currentOrder.drink,
         quantity: currentOrder.quantity || 1,
+        specials: [...selectedSpecials],
+        secondMenuItemSpecials: currentOrder.isMix ? [...selectedSecondSpecials] : undefined,
       };
 
       setOrderItems(prev => [...prev, newOrderItem]);
       setCurrentOrder({});
+      setSelectedSpecials([]);
+      setSelectedSecondSpecials([]);
       setShowOrderBuilder(false);
       toast({
         title: "Item added",
@@ -259,12 +297,43 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
     orderItems.forEach((order, index) => {
       message += `\nOrder #${index + 1}:\n`;
       
+      // Format specials for main item
+      let specialsText = '';
+      if (order.specials && order.specials.length > 0) {
+        if (order.menuItem.specialOption === 'select') {
+          specialsText = ` with ${order.specials.join(' & ')}`;
+        } else if (order.menuItem.specialOption === 'exclude') {
+          specialsText = `\n    - ${order.specials.map(s => `No ${s}`).join('\n    - ')}`;
+        }
+      }
+      
       if (order.isMix && order.secondMenuItem) {
-        message += `- ${order.menuItem.name}\n`;
-        message += `- ${order.secondMenuItem.name}\n`;
-        message += `Mix ${order.selectedSize} [$${order.selectedPrice}] x ${order.quantity}\n`;
+        message += `- ${order.menuItem.name}${order.menuItem.specialOption === 'select' ? specialsText : ''}\n`;
+        if (order.menuItem.specialOption === 'exclude' && specialsText) {
+          message += `${specialsText}\n`;
+        }
+        
+        // Format specials for second item
+        let secondSpecialsText = '';
+        if (order.secondMenuItemSpecials && order.secondMenuItemSpecials.length > 0) {
+          if (order.secondMenuItem.specialOption === 'select') {
+            secondSpecialsText = ` with ${order.secondMenuItemSpecials.join(' & ')}`;
+          } else if (order.secondMenuItem.specialOption === 'exclude') {
+            secondSpecialsText = `\n    - ${order.secondMenuItemSpecials.map(s => `No ${s}`).join('\n    - ')}`;
+          }
+        }
+        
+        message += `- ${order.secondMenuItem.name}${order.secondMenuItem.specialOption === 'select' ? secondSpecialsText : ''}\n`;
+        if (order.secondMenuItem.specialOption === 'exclude' && secondSpecialsText) {
+          message += `${secondSpecialsText}\n`;
+        }
+        
+        message += `Mix ${order.selectedSize} [$${Math.round(order.selectedPrice)}] x ${order.quantity}\n`;
       } else {
-        message += `- ${order.menuItem.name} ${order.selectedSize} [$${order.selectedPrice}] x ${order.quantity}\n`;
+        message += `- ${order.menuItem.name}${order.menuItem.specialOption === 'select' ? specialsText : ''} ${order.selectedSize} [$${Math.round(order.selectedPrice)}] x ${order.quantity}\n`;
+        if (order.menuItem.specialOption === 'exclude' && specialsText) {
+          message += `${specialsText}\n`;
+        }
       }
       
       if (order.sides.length > 0) {
@@ -284,15 +353,15 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
       
       if (order.drink) {
         const drinkPrice = Object.values(order.drink.prices)[0] || 0;
-        message += `Drink: ${order.drink.name} [$${drinkPrice}] x ${order.quantity}\n`;
+        message += `Drink: ${order.drink.name} [$${Math.round(drinkPrice)}] x ${order.quantity}\n`;
       }
     });
 
     const total = calculateTotal();
-    message += `\nTotal: $${total.toFixed(2)}`;
+    message += `\nTotal: $${Math.round(total)}`;
     
     if (deliveryOption === 'delivery' && restaurant.hasDelivery) {
-      message += ` (includes $${restaurant.deliveryPrice} delivery fee)`;
+      message += ` (includes $${Math.round(restaurant.deliveryPrice)} delivery fee)`;
     }
 
     // Open WhatsApp
@@ -311,7 +380,10 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
   // Render category section for Add Item widget
   const renderCategorySection = (category: string) => {
     const items = groupedItems[category] || [];
-    if (items.length === 0) return null;
+    // Only show items with prices
+    const itemsWithPrices = items.filter(item => Object.keys(item.prices).length > 0);
+    
+    if (itemsWithPrices.length === 0) return null;
 
     const categoryTitle = category.charAt(0).toUpperCase() + category.slice(1);
 
@@ -319,7 +391,7 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
       <div key={category}>
         <h3 className="font-semibold mb-2">Select {categoryTitle}</h3>
         <div className="grid grid-cols-2 gap-2 mb-4">
-          {items.map((item, index) => (
+          {itemsWithPrices.map((item, index) => (
             <Button
               key={index}
               variant="outline"
@@ -331,12 +403,12 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
                 <div className="font-medium">{item.name}</div>
                 {Object.keys(item.prices).length > 1 && (
                   <div className="text-xs text-gray-500">
-                    {Object.entries(item.prices).map(([size, price]) => `${size}:$${price}`).join(', ')}
+                    {Object.entries(item.prices).map(([size, price]) => `${size}:$${Math.round(price)}`).join(', ')}
                   </div>
                 )}
                 {Object.keys(item.prices).length === 1 && (
                   <div className="text-xs text-gray-500">
-                    ${Object.values(item.prices)[0]}
+                    ${Math.round(Object.values(item.prices)[0])}
                   </div>
                 )}
               </div>
@@ -399,11 +471,29 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
                     <div className="flex-1">
                       <h3 className="font-medium">
                         {item.isMix ? `Mix (${item.selectedSize})` : `${item.menuItem.name} ${item.selectedSize}`}
-                        <span className="text-green-600 ml-2">${item.selectedPrice}</span>
+                        <span className="text-green-600 ml-2">${Math.round(item.selectedPrice)}</span>
                       </h3>
                       {item.isMix && item.secondMenuItem && (
                         <p className="text-sm text-gray-600">
                           {item.menuItem.name} & {item.secondMenuItem.name}
+                        </p>
+                      )}
+
+                      {item.specials && item.specials.length > 0 && (
+                        <p className="text-sm text-gray-600">
+                          {item.menuItem.specialOption === 'select' 
+                            ? `With: ${item.specials.join(', ')}`
+                            : `No: ${item.specials.join(', ')}`
+                          }
+                        </p>
+                      )}
+
+                      {item.secondMenuItemSpecials && item.secondMenuItemSpecials.length > 0 && (
+                        <p className="text-sm text-gray-600">
+                          Second item - {item.secondMenuItem?.specialOption === 'select' 
+                            ? `With: ${item.secondMenuItemSpecials.join(', ')}`
+                            : `No: ${item.secondMenuItemSpecials.join(', ')}`
+                          }
                         </p>
                       )}
                       
@@ -427,7 +517,7 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
                       
                       {item.drink && (
                         <p className="text-sm text-gray-600">
-                          Drink: {item.drink.name} ${Object.values(item.drink.prices)[0]}
+                          Drink: {item.drink.name} ${Math.round(Object.values(item.drink.prices)[0])}
                         </p>
                       )}
                     </div>
@@ -463,7 +553,7 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
               <div className="mt-4 pt-4 border-t">
                 <div className="flex justify-between items-center font-semibold text-lg">
                   <span>Total:</span>
-                  <span>${calculateTotal().toFixed(2)}</span>
+                  <span>${Math.round(calculateTotal())}</span>
                 </div>
               </div>
             </CardContent>
@@ -494,7 +584,7 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
                   <SelectContent>
                     <SelectItem value="pickup">Pickup</SelectItem>
                     {restaurant.hasDelivery && (
-                      <SelectItem value="delivery">Delivery (+${restaurant.deliveryPrice})</SelectItem>
+                      <SelectItem value="delivery">Delivery (+${Math.round(restaurant.deliveryPrice)})</SelectItem>
                     )}
                   </SelectContent>
                 </Select>
@@ -552,7 +642,7 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
                 className="w-full justify-between"
               >
                 <span>{size}</span>
-                <span>${price}</span>
+                <span>${Math.round(price)}</span>
               </Button>
             ))}
           </div>
@@ -570,7 +660,48 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
             {currentOrder.menuItem && (
               <div>
                 <h3 className="font-semibold">Selected Item</h3>
-                <p>{currentOrder.menuItem.name} {currentOrder.selectedSize} - ${currentOrder.selectedPrice}</p>
+                <p>{currentOrder.menuItem.name} {currentOrder.selectedSize} - ${Math.round(currentOrder.selectedPrice || 0)}</p>
+              </div>
+            )}
+
+            {/* Special Options for Main Item */}
+            {currentOrder.menuItem && currentOrder.menuItem.specials && currentOrder.menuItem.specials.length > 0 && (
+              <div>
+                <h3 className="font-semibold mb-2">
+                  {currentOrder.menuItem.specialOption === 'select' ? 'Select Options' : 'Exclude Options'}
+                  {typeof currentOrder.menuItem.specialCap === 'number' && (
+                    <span className="text-sm font-normal text-gray-600 ml-2">
+                      (Max {currentOrder.menuItem.specialCap})
+                    </span>
+                  )}
+                </h3>
+                <div className="space-y-2">
+                  {currentOrder.menuItem.specials.map((special) => (
+                    <div key={special} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`special-${special}`}
+                        checked={selectedSpecials.includes(special)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            if (typeof currentOrder.menuItem?.specialCap === 'number' && 
+                                selectedSpecials.length >= currentOrder.menuItem.specialCap) {
+                              toast({
+                                title: "Selection limit reached",
+                                description: `You can only select up to ${currentOrder.menuItem.specialCap} options.`,
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            setSelectedSpecials(prev => [...prev, special]);
+                          } else {
+                            setSelectedSpecials(prev => prev.filter(s => s !== special));
+                          }
+                        }}
+                      />
+                      <Label htmlFor={`special-${special}`}>{special}</Label>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -580,7 +711,11 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
                 <Switch
                   id="mix-food"
                   checked={currentOrder.isMix}
-                  onCheckedChange={(checked) => setCurrentOrder(prev => ({ ...prev, isMix: checked, secondMenuItem: undefined }))}
+                  onCheckedChange={(checked) => setCurrentOrder(prev => ({ 
+                    ...prev, 
+                    isMix: checked, 
+                    secondMenuItem: undefined 
+                  }))}
                 />
                 <Label htmlFor="mix-food">Mix Food</Label>
               </div>
@@ -600,10 +735,53 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
                           ...prev,
                           secondMenuItem: prev.secondMenuItem?.name === item.name ? undefined : item
                         }));
+                        setSelectedSecondSpecials([]);
                       }}
                     >
                       {item.name}
                     </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Special Options for Second Item in Mix */}
+            {currentOrder.isMix && currentOrder.secondMenuItem && 
+             currentOrder.secondMenuItem.specials && currentOrder.secondMenuItem.specials.length > 0 && (
+              <div>
+                <h3 className="font-semibold mb-2">
+                  {currentOrder.secondMenuItem.specialOption === 'select' ? 'Select Options for Second Item' : 'Exclude Options for Second Item'}
+                  {typeof currentOrder.secondMenuItem.specialCap === 'number' && (
+                    <span className="text-sm font-normal text-gray-600 ml-2">
+                      (Max {currentOrder.secondMenuItem.specialCap})
+                    </span>
+                  )}
+                </h3>
+                <div className="space-y-2">
+                  {currentOrder.secondMenuItem.specials.map((special) => (
+                    <div key={special} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`second-special-${special}`}
+                        checked={selectedSecondSpecials.includes(special)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            if (typeof currentOrder.secondMenuItem?.specialCap === 'number' && 
+                                selectedSecondSpecials.length >= currentOrder.secondMenuItem.specialCap) {
+                              toast({
+                                title: "Selection limit reached",
+                                description: `You can only select up to ${currentOrder.secondMenuItem.specialCap} options.`,
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            setSelectedSecondSpecials(prev => [...prev, special]);
+                          } else {
+                            setSelectedSecondSpecials(prev => prev.filter(s => s !== special));
+                          }
+                        }}
+                      />
+                      <Label htmlFor={`second-special-${special}`}>{special}</Label>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -711,12 +889,58 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
                       }}
                     >
                       <span>{item.name}</span>
-                      <span>${Object.values(item.prices)[0] || 0}</span>
+                      <span>${Math.round(Object.values(item.prices)[0] || 0)}</span>
                     </Button>
                   ))}
                 </div>
               </div>
             )}
+
+            {/* Dynamic Categories */}
+            {availableCategories
+              .filter(category => !fixedCategories.includes(category))
+              .map(category => {
+                const items = groupedItems[category] || [];
+                const itemsWithPrices = items.filter(item => Object.keys(item.prices).length > 0);
+                
+                if (itemsWithPrices.length === 0) return null;
+                
+                const categoryTitle = category.charAt(0).toUpperCase() + category.slice(1);
+                
+                return (
+                  <div key={category}>
+                    <h3 className="font-semibold mb-2">Select {categoryTitle}</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {itemsWithPrices.map((item, index) => (
+                        <Button
+                          key={index}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            // For dynamic categories, we can add them as sides for now
+                            // This can be enhanced based on specific requirements
+                            const sides = currentOrder.sides || [];
+                            const exists = sides.some(s => s.name === item.name);
+                            setCurrentOrder(prev => ({
+                              ...prev,
+                              sides: exists 
+                                ? sides.filter(s => s.name !== item.name)
+                                : [...sides, item]
+                            }));
+                          }}
+                        >
+                          <div className="text-left">
+                            <div className="font-medium">{item.name}</div>
+                            <div className="text-xs text-gray-500">
+                              ${Math.round(Object.values(item.prices)[0] || 0)}
+                            </div>
+                          </div>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
 
             <Button onClick={handleCompleteOrder} className="w-full">
               Add to Order

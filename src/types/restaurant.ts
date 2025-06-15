@@ -22,9 +22,13 @@ export interface MenuItem {
   name: string;
   priceAndSize: string;
   period: 'breakfast' | 'lunch';
-  type: string; // Changed to string to allow dynamic categories
+  type: string;
   gravey?: string;
   prices: { [size: string]: number };
+  special?: string;
+  specialOption?: 'select' | 'exclude' | '';
+  specialCap?: number | 'max' | '';
+  specials?: string[];
 }
 
 export interface OrderItem {
@@ -39,6 +43,8 @@ export interface OrderItem {
   gravey: MenuItem[];
   drink?: MenuItem;
   quantity: number;
+  specials?: string[];
+  secondMenuItemSpecials?: string[];
 }
 
 export interface Order {

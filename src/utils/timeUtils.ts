@@ -12,16 +12,16 @@ export const parseTimeString = (timeStr: string): Date => {
 };
 
 export const getCurrentPeriod = (
-  breakStart: string,
-  breakEnd: string,
+  breakfastStart: string,
+  breakfastEnd: string,
   lunchStart: string,
   lunchEnd: string
 ): 'break' | 'lunch' | 'closed' => {
   const now = new Date();
   const currentTime = parse(format(now, 'HH:mm'), 'HH:mm', new Date());
   
-  const breakStartTime = parseTimeString(breakStart);
-  const breakEndTime = parseTimeString(breakEnd);
+  const breakStartTime = parseTimeString(breakfastStart);
+  const breakEndTime = parseTimeString(breakfastEnd);
   const lunchStartTime = parseTimeString(lunchStart);
   const lunchEndTime = parseTimeString(lunchEnd);
 

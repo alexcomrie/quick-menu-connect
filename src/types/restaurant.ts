@@ -1,3 +1,4 @@
+
 export interface Restaurant {
   name: string;
   address: string;
@@ -6,14 +7,15 @@ export interface Restaurant {
   hasDelivery: boolean;
   deliveryPrice: number;
   openingHours: string;
-  breakStartTime: string;
-  breakEndTime: string;
+  breakfastStartTime: string;
+  breakfastEndTime: string;
   lunchStartTime: string;
   lunchEndTime: string;
   profilePictureUrl: string;
   businessRegistrationUrl: string;
   menuSheetUrl: string;
   status?: string; // Added status field for filtering active restaurants
+  mixPrices: { [size: string]: number };
 }
 
 export interface MenuItem {
@@ -28,6 +30,8 @@ export interface MenuItem {
 export interface OrderItem {
   id: string;
   menuItem: MenuItem;
+  secondMenuItem?: MenuItem;
+  isMix: boolean;
   selectedSize: string;
   selectedPrice: number;
   sides: MenuItem[];

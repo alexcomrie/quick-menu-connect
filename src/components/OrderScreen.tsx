@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -6,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
 import { ArrowLeft, Plus, Minus, X } from 'lucide-react';
 import { Restaurant, MenuItem, OrderItem, Order } from '../types/restaurant';
 import { useToast } from '@/hooks/use-toast';
@@ -33,8 +33,9 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
   const { toast } = useToast();
 
   const groupedItems = menuItems.reduce((acc, item) => {
-    if (!acc[item.type]) acc[item.type] = [];
-    acc[item.type].push(item);
+    const type = item.type === 'soup' ? 'gravey' : item.type;
+    if (!acc[type]) acc[type] = [];
+    acc[type].push(item);
     return acc;
   }, {} as Record<string, MenuItem[]>);
 
@@ -53,6 +54,7 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
         vegetables: [],
         gravey: [],
         quantity: 1,
+        isMix: false,
       });
       setShowOrderBuilder(true);
     } else {
@@ -73,6 +75,7 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
         vegetables: [],
         gravey: [],
         quantity: 1,
+        isMix: false,
       });
       setShowSizeDialog(false);
       setShowOrderBuilder(true);
@@ -81,11 +84,29 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
 
   const handleCompleteOrder = () => {
     if (currentOrder.menuItem) {
+      if (currentOrder.isMix) {
+        if (!currentOrder.secondMenuItem) {
+          toast({ title: "Second main dish required for a mix order.", variant: "destructive" });
+          return;
+        }
+        if (currentOrder.selectedSize !== 'Med' && currentOrder.selectedSize !== 'Lrg') {
+          toast({ title: "Mix meals only available in Medium or Large size.", variant: "destructive" });
+          return;
+        }
+      }
+
+      let price = currentOrder.selectedPrice || 0;
+      if (currentOrder.isMix) {
+        price = restaurant.mixPrices[currentOrder.selectedSize || ''] ?? 0;
+      }
+
       const newOrderItem: OrderItem = {
         id: currentOrder.id || Date.now().toString(),
         menuItem: currentOrder.menuItem,
+        secondMenuItem: currentOrder.secondMenuItem,
+        isMix: currentOrder.isMix || false,
         selectedSize: currentOrder.selectedSize || '',
-        selectedPrice: currentOrder.selectedPrice || 0,
+        selectedPrice: price,
         sides: currentOrder.sides || [],
         vegetables: currentOrder.vegetables || [],
         gravey: currentOrder.gravey || [],
@@ -183,7 +204,14 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
 
     orderItems.forEach((order, index) => {
       message += `\nOrder #${index + 1}:\n`;
-      message += `- ${order.menuItem.name} ${order.selectedSize} [$${order.selectedPrice}] x ${order.quantity}\n`;
+      
+      if (order.isMix && order.secondMenuItem) {
+        message += `- ${order.menuItem.name}\n`;
+        message += `- ${order.secondMenuItem.name}\n`;
+        message += `Mix ${order.selectedSize} [$${order.selectedPrice}] x ${order.quantity}\n`;
+      } else {
+        message += `- ${order.menuItem.name} ${order.selectedSize} [$${order.selectedPrice}] x ${order.quantity}\n`;
+      }
       
       if (order.sides.length > 0) {
         message += 'Sides:\n';
@@ -277,9 +305,14 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
                   <div key={item.id} className="flex justify-between items-start p-4 border rounded-lg">
                     <div className="flex-1">
                       <h3 className="font-medium">
-                        {item.menuItem.name} {item.selectedSize} 
+                        {item.isMix ? `Mix (${item.selectedSize})` : `${item.menuItem.name} ${item.selectedSize}`}
                         <span className="text-green-600 ml-2">${item.selectedPrice}</span>
                       </h3>
+                      {item.isMix && item.secondMenuItem && (
+                        <p className="text-sm text-gray-600">
+                          {item.menuItem.name} & {item.secondMenuItem.name}
+                        </p>
+                      )}
                       
                       {item.sides.length > 0 && (
                         <p className="text-sm text-gray-600">
@@ -448,6 +481,39 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
               </div>
             )}
 
+            {/* Mix Food Selection */}
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="mix-food"
+                checked={currentOrder.isMix}
+                onCheckedChange={(checked) => setCurrentOrder(prev => ({ ...prev, isMix: checked, secondMenuItem: undefined }))}
+              />
+              <Label htmlFor="mix-food">Mix Food</Label>
+            </div>
+
+            {currentOrder.isMix && (
+              <div>
+                <h3 className="font-semibold mb-2">Select Second Main Dish</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {(groupedItems.meat || []).filter(item => item.name !== currentOrder.menuItem?.name).map((item, index) => (
+                    <Button
+                      key={index}
+                      variant={currentOrder.secondMenuItem?.name === item.name ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setCurrentOrder(prev => ({
+                          ...prev,
+                          secondMenuItem: prev.secondMenuItem?.name === item.name ? undefined : item
+                        }));
+                      }}
+                    >
+                      {item.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Sides Selection */}
             {(groupedItems.side || []).length > 0 && (
               <div>
@@ -494,6 +560,34 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
                           vegetables: exists 
                             ? vegetables.filter(v => v.name !== item.name)
                             : [...vegetables, item]
+                        }));
+                      }}
+                    >
+                      {item.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Gravey Selection */}
+            {(groupedItems.gravey || []).length > 0 && (
+              <div>
+                <h3 className="font-semibold mb-2">Select Gravey</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {(groupedItems.gravey || []).map((item, index) => (
+                    <Button
+                      key={index}
+                      variant={currentOrder.gravey?.some(g => g.name === item.name) ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        const gravey = currentOrder.gravey || [];
+                        const exists = gravey.some(g => g.name === item.name);
+                        setCurrentOrder(prev => ({
+                          ...prev,
+                          gravey: exists
+                            ? gravey.filter(g => g.name !== item.name)
+                            : [...gravey, item]
                         }));
                       }}
                     >

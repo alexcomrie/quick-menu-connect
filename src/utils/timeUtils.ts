@@ -14,38 +14,69 @@ export const parseTimeString = (timeStr: string): Date => {
   }
 };
 
+// Convert time to minutes since midnight for comparison
+const timeToMinutes = (timeStr: string): number => {
+  if (!timeStr) return -1;
+  
+  try {
+    const time = parseTimeString(timeStr);
+    if (isNaN(time.getTime())) return -1;
+    
+    return time.getHours() * 60 + time.getMinutes();
+  } catch {
+    return -1;
+  }
+};
+
+// Check if current time is within a time range
+const isTimeInRange = (currentMinutes: number, startMinutes: number, endMinutes: number): boolean => {
+  if (startMinutes === -1 || endMinutes === -1) return false;
+  return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+};
+
 export const getCurrentPeriod = (
   breakfastStart: string,
   breakfastEnd: string,
   lunchStart: string,
   lunchEnd: string
 ): 'breakfast' | 'lunch' | 'closed' => {
+  // Get current time in Jamaica timezone (UTC-5)
   const now = new Date();
-  const currentTime = parse(format(now, 'HH:mm'), 'HH:mm', new Date());
   
-  if (breakfastStart && breakfastEnd) {
-    const breakStartTime = parseTimeString(breakfastStart);
-    const breakEndTime = parseTimeString(breakfastEnd);
-    // Check for valid dates before calling isWithinInterval
-    if (breakStartTime.getTime() && breakEndTime.getTime()) {
-      if (isWithinInterval(currentTime, { start: breakStartTime, end: breakEndTime })) {
-        return 'breakfast';
-      }
-    }
+  // Convert to Jamaica time (UTC-5)
+  const jamaicaTime = new Date(now.getTime() - (5 * 60 * 60 * 1000));
+  const currentMinutes = jamaicaTime.getHours() * 60 + jamaicaTime.getMinutes();
+  
+  console.log('Current Jamaica time:', jamaicaTime.toLocaleTimeString());
+  console.log('Current minutes:', currentMinutes);
+  console.log('Restaurant times:', { breakfastStart, breakfastEnd, lunchStart, lunchEnd });
+  
+  // Convert restaurant times to minutes
+  const breakfastStartMinutes = timeToMinutes(breakfastStart);
+  const breakfastEndMinutes = timeToMinutes(breakfastEnd);
+  const lunchStartMinutes = timeToMinutes(lunchStart);
+  const lunchEndMinutes = timeToMinutes(lunchEnd);
+  
+  console.log('Time ranges in minutes:', {
+    breakfast: `${breakfastStartMinutes}-${breakfastEndMinutes}`,
+    lunch: `${lunchStartMinutes}-${lunchEndMinutes}`
+  });
+  
+  // Check if current time is within lunch period first (prioritize lunch)
+  const isLunchTime = isTimeInRange(currentMinutes, lunchStartMinutes, lunchEndMinutes);
+  
+  // Check if current time is within breakfast period
+  const isBreakfastTime = isTimeInRange(currentMinutes, breakfastStartMinutes, breakfastEndMinutes);
+  
+  console.log('Period checks:', { isLunchTime, isBreakfastTime });
+  
+  if (isLunchTime) {
+    return 'lunch';
+  } else if (isBreakfastTime) {
+    return 'breakfast';
+  } else {
+    return 'closed';
   }
-  
-  if (lunchStart && lunchEnd) {
-    const lunchStartTime = parseTimeString(lunchStart);
-    const lunchEndTime = parseTimeString(lunchEnd);
-    // Check for valid dates before calling isWithinInterval
-    if (lunchStartTime.getTime() && lunchEndTime.getTime()) {
-      if (isWithinInterval(currentTime, { start: lunchStartTime, end: lunchEndTime })) {
-        return 'lunch';
-      }
-    }
-  }
-  
-  return 'closed';
 };
 
 export const getRandomVibrantColor = (): string => {

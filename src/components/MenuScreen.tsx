@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowLeft, User, Plus } from 'lucide-react';
@@ -24,19 +24,74 @@ export const MenuScreen: React.FC<MenuScreenProps> = ({
   const [showProfile, setShowProfile] = useState(false);
   const [showOrder, setShowOrder] = useState(false);
   const [orderMode, setOrderMode] = useState(false);
+  const [currentPeriod, setCurrentPeriod] = useState<'breakfast' | 'lunch' | 'closed'>('closed');
   const { toast } = useToast();
-
-  const currentPeriod = getCurrentPeriod(
-    restaurant.breakfastStartTime,
-    restaurant.breakfastEndTime,
-    restaurant.lunchStartTime,
-    restaurant.lunchEndTime
-  );
+  
+  const periodCheckInterval = useRef<NodeJS.Timeout | null>(null);
+  const refreshInterval = useRef<NodeJS.Timeout | null>(null);
 
   const gradientClass = getRandomVibrantColor();
 
+  // Determine current period
+  const determineCurrentPeriod = () => {
+    const period = getCurrentPeriod(
+      restaurant.breakfastStartTime,
+      restaurant.breakfastEndTime,
+      restaurant.lunchStartTime,
+      restaurant.lunchEndTime
+    );
+    
+    console.log('Determined period:', period);
+    return period;
+  };
+
+  // Check and update period if changed
+  const checkAndUpdatePeriod = () => {
+    const newPeriod = determineCurrentPeriod();
+    if (newPeriod !== currentPeriod) {
+      console.log('Period changed from', currentPeriod, 'to', newPeriod);
+      setCurrentPeriod(newPeriod);
+      // Refresh menu when period changes
+      if (menuItems.length > 0) {
+        console.log('Period changed, refreshing display');
+      }
+    }
+  };
+
+  // Start periodic checking every minute
+  const startPeriodCheck = () => {
+    periodCheckInterval.current = setInterval(() => {
+      checkAndUpdatePeriod();
+    }, 60000); // Check every minute
+  };
+
+  // Start periodic refresh every 30 minutes
+  const startPeriodicRefresh = () => {
+    refreshInterval.current = setInterval(() => {
+      loadMenuItems();
+    }, 30 * 60 * 1000); // Refresh every 30 minutes
+  };
+
   useEffect(() => {
+    // Initial period determination
+    setCurrentPeriod(determineCurrentPeriod());
+    
+    // Load menu items
     loadMenuItems();
+    
+    // Start periodic checks
+    startPeriodCheck();
+    startPeriodicRefresh();
+    
+    // Cleanup intervals on unmount
+    return () => {
+      if (periodCheckInterval.current) {
+        clearInterval(periodCheckInterval.current);
+      }
+      if (refreshInterval.current) {
+        clearInterval(refreshInterval.current);
+      }
+    };
   }, [restaurant.menuSheetUrl]);
 
   const loadMenuItems = async () => {
@@ -61,7 +116,19 @@ export const MenuScreen: React.FC<MenuScreenProps> = ({
   };
 
   // Filter menu items for current period
-  const currentMenuItems = menuItems.filter(item => item.period === currentPeriod);
+  const getMenuForPeriod = (allItems: MenuItem[], period: 'breakfast' | 'lunch' | 'closed') => {
+    if (period === 'closed') {
+      // When closed, show all items but mark as unavailable
+      return allItems;
+    }
+    
+    return allItems.filter(item => 
+      item.period.toLowerCase() === period.toLowerCase() || 
+      item.period.toLowerCase() === 'both'
+    );
+  };
+
+  const currentMenuItems = getMenuForPeriod(menuItems, currentPeriod);
   console.log('Current period:', currentPeriod);
   console.log('Filtered menu items for current period:', currentMenuItems);
   
@@ -86,6 +153,16 @@ export const MenuScreen: React.FC<MenuScreenProps> = ({
       });
       return;
     }
+    
+    if (currentPeriod === 'closed') {
+      toast({
+        title: "Restaurant is closed",
+        description: "Orders can only be placed during operating hours",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setShowOrder(true);
   };
 
@@ -138,9 +215,22 @@ export const MenuScreen: React.FC<MenuScreenProps> = ({
           <div className="text-center text-white mb-8">
             <h1 className="text-3xl font-bold mb-2">{restaurant.name}</h1>
             <p className="text-xl opacity-90">
-              {currentPeriod === 'breakfast' ? 'Breakfast Menu' : 'Lunch Menu'}
+              {currentPeriod === 'closed' 
+                ? 'Restaurant Closed' 
+                : `${currentPeriod.charAt(0).toUpperCase() + currentPeriod.slice(1)} Menu`
+              }
             </p>
-            {restaurant.whatsappNumber && (
+            <div className={`inline-flex items-center mt-2 px-3 py-1 rounded-full text-sm ${
+              currentPeriod === 'closed' 
+                ? 'bg-red-500/20 text-red-100' 
+                : 'bg-green-500/20 text-green-100'
+            }`}>
+              <div className={`w-2 h-2 rounded-full mr-2 ${
+                currentPeriod === 'closed' ? 'bg-red-400' : 'bg-green-400'
+              }`} />
+              {currentPeriod === 'closed' ? 'Currently Closed' : 'Currently Open'}
+            </div>
+            {restaurant.whatsappNumber && currentPeriod !== 'closed' && (
               <Button
                 onClick={handleOrderClick}
                 className="mt-4 bg-green-600 hover:bg-green-700 text-white"
@@ -157,7 +247,10 @@ export const MenuScreen: React.FC<MenuScreenProps> = ({
           <Card className="bg-white/90 backdrop-blur-sm">
             <CardContent className="p-8 text-center">
               <p className="text-gray-600 text-lg">
-                No menu items available for {currentPeriod} period
+                {currentPeriod === 'closed' 
+                  ? `Restaurant is currently closed. Operating hours: ${restaurant.openingHours}`
+                  : `No menu items available for ${currentPeriod} period`
+                }
               </p>
               <p className="text-gray-500 text-sm mt-2">
                 Menu items found: {menuItems.length} | Current period: {currentPeriod}
@@ -180,11 +273,20 @@ export const MenuScreen: React.FC<MenuScreenProps> = ({
                       {items.map((item, index) => (
                         <div
                           key={`${item.name}-${index}`}
-                          className="flex justify-between items-center p-4 rounded-lg hover:bg-gray-50 transition-colors"
+                          className={`flex justify-between items-center p-4 rounded-lg transition-colors ${
+                            currentPeriod === 'closed' 
+                              ? 'bg-gray-100 opacity-60' 
+                              : 'hover:bg-gray-50'
+                          }`}
                         >
                           <div className="flex-1">
                             <h3 className="font-semibold text-gray-900">
                               {item.name}
+                              {currentPeriod === 'closed' && (
+                                <span className="ml-2 text-xs text-red-600 bg-red-100 px-2 py-1 rounded">
+                                  Unavailable
+                                </span>
+                              )}
                             </h3>
                             {Object.keys(item.prices).length > 0 && (
                               <div className="flex flex-wrap gap-2 mt-1">
@@ -200,7 +302,7 @@ export const MenuScreen: React.FC<MenuScreenProps> = ({
                             )}
                           </div>
                           
-                          {orderMode && (
+                          {orderMode && currentPeriod !== 'closed' && (
                             <Button size="sm" variant="outline">
                               <Plus className="h-4 w-4" />
                             </Button>

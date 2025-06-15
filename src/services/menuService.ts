@@ -75,7 +75,7 @@ export const fetchMenuItems = async (menuSheetUrl: string): Promise<MenuItem[]> 
               }
               
               const periodRaw = (row[3] || '').toLowerCase();
-              const period: 'break' | 'lunch' = periodRaw === 'lunch' ? 'lunch' : 'break';
+              const period: 'breakfast' | 'lunch' = periodRaw === 'lunch' ? 'lunch' : 'breakfast';
 
               return {
                 name: row[1] || '',

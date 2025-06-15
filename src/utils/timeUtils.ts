@@ -1,5 +1,13 @@
 
 import { format, isWithinInterval, parse } from 'date-fns';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+
+const JAMAICA_TIMEZONE = 'America/Jamaica';
+
+// Get current time in Jamaica timezone
+export const getJamaicaTime = (): Date => {
+  return toZonedTime(new Date(), JAMAICA_TIMEZONE);
+};
 
 export const parseTimeString = (timeStr: string): Date => {
   if (!timeStr) {
@@ -40,14 +48,14 @@ export const getCurrentPeriod = (
   lunchStart: string,
   lunchEnd: string
 ): 'breakfast' | 'lunch' | 'closed' => {
-  // Get current time in Jamaica timezone (UTC-5)
-  const now = new Date();
-  
-  // Convert to Jamaica time (UTC-5)
-  const jamaicaTime = new Date(now.getTime() - (5 * 60 * 60 * 1000));
+  // Get current time in Jamaica timezone
+  const jamaicaTime = getJamaicaTime();
   const currentMinutes = jamaicaTime.getHours() * 60 + jamaicaTime.getMinutes();
   
-  console.log('Current Jamaica time:', jamaicaTime.toLocaleTimeString());
+  console.log('Current Jamaica time:', jamaicaTime.toLocaleTimeString('en-US', { 
+    timeZone: JAMAICA_TIMEZONE,
+    hour12: true 
+  }));
   console.log('Current minutes:', currentMinutes);
   console.log('Restaurant times:', { breakfastStart, breakfastEnd, lunchStart, lunchEnd });
   
@@ -93,12 +101,24 @@ export const getRandomVibrantColor = (): string => {
     'from-pink-500 to-rose-500'
   ];
   
-  // Use date as seed for consistent daily colors
-  const today = new Date().toDateString();
+  // Use Jamaica time for consistent daily colors
+  const jamaicaTime = getJamaicaTime();
+  const today = jamaicaTime.toDateString();
   const hash = today.split('').reduce((a, b) => {
     a = ((a << 5) - a) + b.charCodeAt(0);
     return a & a;
   }, 0);
   
   return colors[Math.abs(hash) % colors.length];
+};
+
+// Format Jamaica time for display
+export const formatJamaicaTime = (date?: Date): string => {
+  const timeToFormat = date || getJamaicaTime();
+  return format(toZonedTime(timeToFormat, JAMAICA_TIMEZONE), 'h:mm a');
+};
+
+// Get Jamaica date string
+export const getJamaicaDateString = (): string => {
+  return getJamaicaTime().toDateString();
 };

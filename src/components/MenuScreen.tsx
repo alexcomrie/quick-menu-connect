@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ArrowLeft, User, Plus } from 'lucide-react';
 import { Restaurant, MenuItem } from '../types/restaurant';
 import { getCurrentPeriod, getRandomVibrantColor } from '../utils/timeUtils';
-import { fetchMenuItems } from '../services/googleSheetsService';
+import { fetchMenuItems } from '../services/menuService';
 import { RestaurantProfile } from './RestaurantProfile';
 import { OrderScreen } from './OrderScreen';
 import { useToast } from '@/hooks/use-toast';
@@ -42,7 +42,11 @@ export const MenuScreen: React.FC<MenuScreenProps> = ({
   const loadMenuItems = async () => {
     try {
       setLoading(true);
+      console.log('Loading menu items for restaurant:', restaurant.name);
+      console.log('Menu sheet URL:', restaurant.menuSheetUrl);
+      
       const items = await fetchMenuItems(restaurant.menuSheetUrl);
+      console.log('Loaded menu items:', items);
       setMenuItems(items);
     } catch (error) {
       console.error('Error loading menu items:', error);
@@ -56,17 +60,22 @@ export const MenuScreen: React.FC<MenuScreenProps> = ({
     }
   };
 
+  // Filter menu items for current period
   const currentMenuItems = menuItems.filter(item => item.period === currentPeriod);
+  console.log('Current period:', currentPeriod);
+  console.log('Filtered menu items for current period:', currentMenuItems);
   
-  // Group items by their actual type/category from the CSV
+  // Group items by their actual categories from the CSV
   const groupedItems = currentMenuItems.reduce((acc, item) => {
-    if (!acc[item.type]) acc[item.type] = [];
-    acc[item.type].push(item);
+    const category = item.type.trim();
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(item);
     return acc;
   }, {} as Record<string, MenuItem[]>);
 
-  // Get unique categories from the data
+  // Get actual categories from the menu data, sorted alphabetically
   const availableCategories = Object.keys(groupedItems).sort();
+  console.log('Available categories:', availableCategories);
 
   const handleOrderClick = () => {
     if (!restaurant.whatsappNumber) {
@@ -149,6 +158,9 @@ export const MenuScreen: React.FC<MenuScreenProps> = ({
             <CardContent className="p-8 text-center">
               <p className="text-gray-600 text-lg">
                 No menu items available for {currentPeriod} period
+              </p>
+              <p className="text-gray-500 text-sm mt-2">
+                Menu items found: {menuItems.length} | Current period: {currentPeriod}
               </p>
             </CardContent>
           </Card>

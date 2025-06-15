@@ -1,18 +1,14 @@
-
 import Papa from 'papaparse';
 import { Restaurant, MenuItem } from '../types/restaurant';
 
 const GOOGLE_SHEETS_BASE_URL = 'https://docs.google.com/spreadsheets/d/';
 
-// This would be your actual Google Sheets ID - hardcoded as requested
-const PROFILE_SHEET_ID = '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms';
+// Hardcoded Google Sheets URL for restaurant profiles
+const PROFILE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR9TxJ461YJY5UIpP9Tfv8O1R8Lac6lyCGRRBPIHzBiscc9wSlk68Ja6_ffQUMMCWkeEr6ts_jDrrDI/pub?output=csv';
 
 export const fetchRestaurantProfiles = async (): Promise<Restaurant[]> => {
   try {
-    // Convert Google Sheets to CSV format
-    const csvUrl = `${GOOGLE_SHEETS_BASE_URL}${PROFILE_SHEET_ID}/export?format=csv&gid=0`;
-    
-    const response = await fetch(csvUrl);
+    const response = await fetch(PROFILE_SHEET_URL);
     const csvText = await response.text();
     
     return new Promise((resolve, reject) => {

@@ -98,10 +98,10 @@ export const RestaurantProfile: React.FC<RestaurantProfileProps> = ({
             </CardHeader>
             <CardContent className="space-y-0">
               <InfoRow label="Hours" value={restaurant.openingHours} />
-              {restaurant.breakStartTime && restaurant.breakEndTime && (
+              {restaurant.breakfastStartTime && restaurant.breakfastEndTime && (
                 <InfoRow 
-                  label="Break Time" 
-                  value={`${restaurant.breakStartTime} - ${restaurant.breakEndTime}`} 
+                  label="Breakfast Time" 
+                  value={`${restaurant.breakfastStartTime} - ${restaurant.breakfastEndTime}`} 
                 />
               )}
               {restaurant.lunchStartTime && restaurant.lunchEndTime && (

@@ -18,8 +18,8 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
   onViewProfile,
 }) => {
   const currentPeriod = getCurrentPeriod(
-    restaurant.breakStartTime,
-    restaurant.breakEndTime,
+    restaurant.breakfastStartTime,
+    restaurant.breakfastEndTime,
     restaurant.lunchStartTime,
     restaurant.lunchEndTime
   );

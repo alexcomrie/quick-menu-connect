@@ -27,8 +27,8 @@ export const MenuScreen: React.FC<MenuScreenProps> = ({
   const { toast } = useToast();
 
   const currentPeriod = getCurrentPeriod(
-    restaurant.breakStartTime,
-    restaurant.breakEndTime,
+    restaurant.breakfastStartTime,
+    restaurant.breakfastEndTime,
     restaurant.lunchStartTime,
     restaurant.lunchEndTime
   );
@@ -134,7 +134,7 @@ export const MenuScreen: React.FC<MenuScreenProps> = ({
           <div className="text-center text-white mb-8">
             <h1 className="text-3xl font-bold mb-2">{restaurant.name}</h1>
             <p className="text-xl opacity-90">
-              {currentPeriod === 'break' ? 'Breakfast Menu' : 'Lunch Menu'}
+              {currentPeriod === 'breakfast' ? 'Breakfast Menu' : 'Lunch Menu'}
             </p>
             {restaurant.whatsappNumber && (
               <Button

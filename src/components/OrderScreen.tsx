@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,15 +33,31 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
   const [currentOrder, setCurrentOrder] = useState<Partial<OrderItem>>({});
   const { toast } = useToast();
 
+  // Group menu items by their type, ensuring proper mapping
   const groupedItems = menuItems.reduce((acc, item) => {
-    const type = item.type === 'soup' ? 'gravey' : item.type;
+    // Map soup type to gravey for consistency with Flutter code
+    const type = item.type.toLowerCase() === 'soup' ? 'gravey' : item.type.toLowerCase();
     if (!acc[type]) acc[type] = [];
     acc[type].push(item);
     return acc;
   }, {} as Record<string, MenuItem[]>);
 
+  console.log('Grouped items:', groupedItems);
+  console.log('Menu items:', menuItems);
+
   const handleAddMainDish = (item: MenuItem) => {
+    console.log('Adding main dish:', item);
     setSelectedMenuItem(item);
+    
+    if (Object.keys(item.prices).length === 0) {
+      toast({ 
+        title: "No pricing available", 
+        description: "This item doesn't have pricing information.",
+        variant: "destructive" 
+      });
+      return;
+    }
+    
     if (Object.keys(item.prices).length === 1) {
       // Single price item, proceed directly to order builder
       const size = Object.keys(item.prices)[0];
@@ -271,7 +288,7 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
           <CardContent className="p-6">
             <h2 className="text-lg font-semibold mb-4">Select Main Dishes</h2>
             <div className="grid gap-4">
-              {(groupedItems.meat || []).map((item, index) => (
+              {(groupedItems.main || []).map((item, index) => (
                 <div key={index} className="flex justify-between items-center p-4 border rounded-lg">
                   <div>
                     <h3 className="font-medium">{item.name}</h3>
@@ -495,7 +512,7 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
               <div>
                 <h3 className="font-semibold mb-2">Select Second Main Dish</h3>
                 <div className="grid grid-cols-2 gap-2">
-                  {(groupedItems.meat || []).filter(item => item.name !== currentOrder.menuItem?.name).map((item, index) => (
+                  {(groupedItems.main || []).filter(item => item.name !== currentOrder.menuItem?.name).map((item, index) => (
                     <Button
                       key={index}
                       variant={currentOrder.secondMenuItem?.name === item.name ? "default" : "outline"}
@@ -515,11 +532,11 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
             )}
 
             {/* Sides Selection */}
-            {(groupedItems.side || []).length > 0 && (
+            {(groupedItems.sides || []).length > 0 && (
               <div>
                 <h3 className="font-semibold mb-2">Select Sides</h3>
                 <div className="grid grid-cols-2 gap-2">
-                  {(groupedItems.side || []).map((item, index) => (
+                  {(groupedItems.sides || []).map((item, index) => (
                     <Button
                       key={index}
                       variant={currentOrder.sides?.some(s => s.name === item.name) ? "default" : "outline"}

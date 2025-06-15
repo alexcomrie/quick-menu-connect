@@ -12,6 +12,21 @@ interface RestaurantCardProps {
   onViewProfile: () => void;
 }
 
+const getDirectImageUrl = (url: string): string => {
+  if (url.includes('drive.google.com')) {
+    // Extract file ID from Google Drive URL
+    const regExp = /\/d\/([a-zA-Z0-9_-]+)|\/file\/d\/([a-zA-Z0-9_-]+)\//;
+    const match = url.match(regExp);
+    if (match) {
+      const fileId = match[1] || match[2];
+      if (fileId) {
+        return `https://drive.google.com/uc?export=view&id=${fileId}`;
+      }
+    }
+  }
+  return url;
+};
+
 export const RestaurantCard: React.FC<RestaurantCardProps> = ({
   restaurant,
   onViewMenu,
@@ -49,7 +64,7 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
         <div className="aspect-video mb-4 rounded-lg overflow-hidden bg-gray-100">
           {restaurant.profilePictureUrl ? (
             <img
-              src={restaurant.profilePictureUrl}
+              src={getDirectImageUrl(restaurant.profilePictureUrl)}
               alt={restaurant.name}
               className="w-full h-full object-cover"
               onError={(e) => {

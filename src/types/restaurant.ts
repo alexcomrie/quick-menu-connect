@@ -21,7 +21,7 @@ export interface Restaurant {
 export interface MenuItem {
   name: string;
   priceAndSize: string;
-  period: 'break' | 'lunch';
+  period: 'breakfast' | 'lunch';
   type: 'meat' | 'side' | 'veg' | 'drink' | 'soup' | 'more';
   gravey?: string;
   prices: { [size: string]: number };

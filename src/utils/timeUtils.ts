@@ -2,6 +2,9 @@
 import { format, isWithinInterval, parse } from 'date-fns';
 
 export const parseTimeString = (timeStr: string): Date => {
+  if (!timeStr) {
+    return new Date(NaN); // Return invalid date for empty/falsy input
+  }
   try {
     // Handle formats like "9:00 AM", "12:30 PM", etc.
     return parse(timeStr, 'h:mm a', new Date());
@@ -16,21 +19,30 @@ export const getCurrentPeriod = (
   breakfastEnd: string,
   lunchStart: string,
   lunchEnd: string
-): 'break' | 'lunch' | 'closed' => {
+): 'breakfast' | 'lunch' | 'closed' => {
   const now = new Date();
   const currentTime = parse(format(now, 'HH:mm'), 'HH:mm', new Date());
   
-  const breakStartTime = parseTimeString(breakfastStart);
-  const breakEndTime = parseTimeString(breakfastEnd);
-  const lunchStartTime = parseTimeString(lunchStart);
-  const lunchEndTime = parseTimeString(lunchEnd);
-
-  if (isWithinInterval(currentTime, { start: breakStartTime, end: breakEndTime })) {
-    return 'break';
+  if (breakfastStart && breakfastEnd) {
+    const breakStartTime = parseTimeString(breakfastStart);
+    const breakEndTime = parseTimeString(breakfastEnd);
+    // Check for valid dates before calling isWithinInterval
+    if (breakStartTime.getTime() && breakEndTime.getTime()) {
+      if (isWithinInterval(currentTime, { start: breakStartTime, end: breakEndTime })) {
+        return 'breakfast';
+      }
+    }
   }
   
-  if (isWithinInterval(currentTime, { start: lunchStartTime, end: lunchEndTime })) {
-    return 'lunch';
+  if (lunchStart && lunchEnd) {
+    const lunchStartTime = parseTimeString(lunchStart);
+    const lunchEndTime = parseTimeString(lunchEnd);
+    // Check for valid dates before calling isWithinInterval
+    if (lunchStartTime.getTime() && lunchEndTime.getTime()) {
+      if (isWithinInterval(currentTime, { start: lunchStartTime, end: lunchEndTime })) {
+        return 'lunch';
+      }
+    }
   }
   
   return 'closed';

@@ -32,6 +32,9 @@ export const MenuScreen: React.FC<MenuScreenProps> = ({
 
   const gradientClass = getRandomVibrantColor();
 
+  // Fixed categories order - matching Flutter app specification
+  const fixedCategories = ['Main', 'Sides', 'Veg', 'Gravey', 'Drink'];
+
   // Determine current period
   const determineCurrentPeriod = () => {
     const period = getCurrentPeriod(
@@ -170,9 +173,30 @@ export const MenuScreen: React.FC<MenuScreenProps> = ({
     return acc;
   }, {} as Record<string, MenuItem[]>);
 
-  // Get actual categories from the menu data, sorted alphabetically
-  const availableCategories = Object.keys(groupedItems).sort();
-  console.log('Available categories:', availableCategories);
+  // Get ordered categories - fixed categories first, then any additional ones
+  const getOrderedCategories = (): string[] => {
+    const allCategories = Object.keys(groupedItems);
+    const orderedCategories: string[] = [];
+    
+    // First, add fixed categories in their specified order (if they exist and have items)
+    fixedCategories.forEach(category => {
+      if (groupedItems[category] && groupedItems[category].length > 0) {
+        orderedCategories.push(category);
+      }
+    });
+    
+    // Then add any additional categories not in the fixed list
+    allCategories.forEach(category => {
+      if (!fixedCategories.includes(category) && groupedItems[category].length > 0) {
+        orderedCategories.push(category);
+      }
+    });
+    
+    return orderedCategories;
+  };
+
+  const availableCategories = getOrderedCategories();
+  console.log('Available categories in order:', availableCategories);
 
   const handleOrderClick = () => {
     if (!restaurant.whatsappNumber) {

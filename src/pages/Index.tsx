@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { RestaurantCard } from '../components/RestaurantCard';
 import { MenuScreen } from '../components/MenuScreen';
@@ -130,8 +129,7 @@ const Index = () => {
             </Button>
           </div>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Discover daily menus from your favorite local restaurants. 
-            Fresh ingredients, made with love, delivered to your door.
+            Discover daily menus from your favorite local restaurants.
           </p>
         </div>
 

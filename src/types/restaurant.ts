@@ -1,4 +1,3 @@
-
 export interface Restaurant {
   name: string;
   address: string;
@@ -14,6 +13,7 @@ export interface Restaurant {
   profilePictureUrl: string;
   businessRegistrationUrl: string;
   menuSheetUrl: string;
+  status?: string; // Added status field for filtering active restaurants
 }
 
 export interface MenuItem {

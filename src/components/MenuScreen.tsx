@@ -57,21 +57,16 @@ export const MenuScreen: React.FC<MenuScreenProps> = ({
   };
 
   const currentMenuItems = menuItems.filter(item => item.period === currentPeriod);
+  
+  // Group items by their actual type/category from the CSV
   const groupedItems = currentMenuItems.reduce((acc, item) => {
     if (!acc[item.type]) acc[item.type] = [];
     acc[item.type].push(item);
     return acc;
   }, {} as Record<string, MenuItem[]>);
 
-  const sectionOrder = ['meat', 'side', 'veg', 'drink', 'soup', 'more'];
-  const sectionTitles = {
-    meat: 'MAIN DISHES',
-    side: 'SIDES',
-    veg: 'VEGETABLES', 
-    drink: 'DRINKS',
-    soup: 'SOUPS',
-    more: 'MORE'
-  };
+  // Get unique categories from the data
+  const availableCategories = Object.keys(groupedItems).sort();
 
   const handleOrderClick = () => {
     if (!restaurant.whatsappNumber) {
@@ -159,15 +154,15 @@ export const MenuScreen: React.FC<MenuScreenProps> = ({
           </Card>
         ) : (
           <div className="space-y-6">
-            {sectionOrder.map(sectionKey => {
-              const items = groupedItems[sectionKey];
+            {availableCategories.map(category => {
+              const items = groupedItems[category];
               if (!items || items.length === 0) return null;
 
               return (
-                <Card key={sectionKey} className="bg-white/90 backdrop-blur-sm">
+                <Card key={category} className="bg-white/90 backdrop-blur-sm">
                   <CardContent className="p-6">
-                    <h2 className="text-xl font-bold text-gray-900 mb-4 border-b pb-2">
-                      {sectionTitles[sectionKey as keyof typeof sectionTitles]}
+                    <h2 className="text-xl font-bold text-gray-900 mb-4 border-b pb-2 uppercase">
+                      {category}
                     </h2>
                     <div className="grid gap-4">
                       {items.map((item, index) => (
@@ -193,7 +188,7 @@ export const MenuScreen: React.FC<MenuScreenProps> = ({
                             )}
                           </div>
                           
-                          {orderMode && sectionKey === 'meat' && (
+                          {orderMode && (
                             <Button size="sm" variant="outline">
                               <Plus className="h-4 w-4" />
                             </Button>

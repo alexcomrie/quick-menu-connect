@@ -14,7 +14,7 @@ export interface Restaurant {
   profilePictureUrl: string;
   businessRegistrationUrl: string;
   menuSheetUrl: string;
-  status?: string; // Added status field for filtering active restaurants
+  status?: string;
   mixPrices: { [size: string]: number };
 }
 
@@ -22,7 +22,7 @@ export interface MenuItem {
   name: string;
   priceAndSize: string;
   period: 'breakfast' | 'lunch';
-  type: 'meat' | 'side' | 'veg' | 'drink' | 'soup' | 'more';
+  type: string; // Changed to string to allow dynamic categories
   gravey?: string;
   prices: { [size: string]: number };
 }

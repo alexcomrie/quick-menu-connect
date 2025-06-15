@@ -29,7 +29,7 @@ export const fetchMenuItems = async (menuSheetUrl: string): Promise<MenuItem[]> 
     }
     
     const csvText = await response.text();
-    console.log('Raw CSV data:', csvText.substring(0, 500)); // Log first 500 chars for debugging
+    console.log('Raw CSV data:', csvText.substring(0, 500));
     
     return new Promise((resolve, reject) => {
       Papa.parse(csvText, {
@@ -44,10 +44,10 @@ export const fetchMenuItems = async (menuSheetUrl: string): Promise<MenuItem[]> 
             const menuItems = data.slice(1).map((row, index) => {
               console.log(`Processing row ${index}:`, row);
               
-              const priceAndSize = row[2] || '';
+              const priceAndSize = (row[2] || '').trim();
               const prices: { [size: string]: number } = {};
               
-              // Parse prices more carefully
+              // Parse prices
               if (priceAndSize) {
                 if (priceAndSize.includes(':')) {
                   // Handle size:price format (e.g., "Small:10,Large:15")
@@ -73,40 +73,10 @@ export const fetchMenuItems = async (menuSheetUrl: string): Promise<MenuItem[]> 
                 }
               }
               
-              // Map category to type more accurately
-              const category = (row[0] || '').toLowerCase().trim();
-              let type: MenuItem['type'];
-              switch(category) {
-                case 'main':
-                case 'mains': 
-                  type = 'meat'; 
-                  break;
-                case 'side':
-                case 'sides': 
-                  type = 'side'; 
-                  break;
-                case 'veg':
-                case 'vegetable':
-                case 'vegetables': 
-                  type = 'veg'; 
-                  break;
-                case 'drink':
-                case 'drinks':
-                case 'beverage':
-                case 'beverages': 
-                  type = 'drink'; 
-                  break;
-                case 'soup':
-                case 'soups':
-                case 'gravey':
-                case 'gravy': 
-                  type = 'soup'; 
-                  break;
-                default: 
-                  type = 'more';
-              }
+              // Use the actual category from CSV data
+              const category = (row[0] || '').trim();
               
-              // Handle period more robustly
+              // Handle period
               const periodRaw = (row[3] || '').toLowerCase().trim();
               const period: 'breakfast' | 'lunch' = periodRaw === 'lunch' ? 'lunch' : 'breakfast';
 
@@ -114,14 +84,14 @@ export const fetchMenuItems = async (menuSheetUrl: string): Promise<MenuItem[]> 
                 name: (row[1] || '').trim(),
                 priceAndSize,
                 period,
-                type,
-                gravey: '', // Keep as empty string for now
+                type: category as MenuItem['type'], // Use actual category as type
+                gravey: '',
                 prices,
               };
               
               console.log(`Created menu item:`, menuItem);
               return menuItem;
-            }).filter(item => item.name); // Filter out empty rows
+            }).filter(item => item.name && item.type); // Filter out empty rows
 
             console.log('Final menu items:', menuItems);
 

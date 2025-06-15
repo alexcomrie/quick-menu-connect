@@ -203,12 +203,13 @@ export const fetchMenuItems = async (menuSheetUrl: string): Promise<MenuItem[]> 
                 default: type = 'more';
               }
               
-              const period = (row[3] || '').toLowerCase();
+              const periodRaw = (row[3] || '').toLowerCase();
+              const period: 'break' | 'lunch' = periodRaw === 'lunch' ? 'lunch' : 'break';
 
               return {
                 name: row[1] || '',
                 priceAndSize,
-                period: period === 'lunch' ? 'lunch' : 'break',
+                period,
                 type,
                 gravey: '', // Mapping for gravey is unclear
                 prices,

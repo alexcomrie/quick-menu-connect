@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { RestaurantCard } from '../components/RestaurantCard';
 import { MenuScreen } from '../components/MenuScreen';
@@ -33,47 +32,8 @@ const Index = () => {
   const loadRestaurants = async () => {
     try {
       setLoading(true);
-      // For demo purposes, using mock data. Replace with actual Google Sheets integration
-      const mockRestaurants: Restaurant[] = [
-        {
-          name: "Joe's Kitchen",
-          address: "123 Main Street, Downtown",
-          phoneNumber: "555-0123",
-          whatsappNumber: "18765551234",
-          hasDelivery: true,
-          deliveryPrice: 5,
-          openingHours: "7:00 AM - 6:00 PM",
-          breakStartTime: "7:00 AM",
-          breakEndTime: "11:00 AM", 
-          lunchStartTime: "12:00 PM",
-          lunchEndTime: "4:00 PM",
-          profilePictureUrl: "/placeholder.svg",
-          businessRegistrationUrl: "/placeholder.svg",
-          menuSheetUrl: "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit"
-        },
-        {
-          name: "Mama's Cooking",
-          address: "456 Oak Avenue, Uptown", 
-          phoneNumber: "555-0456",
-          whatsappNumber: "18765554567",
-          hasDelivery: false,
-          deliveryPrice: 0,
-          openingHours: "6:00 AM - 5:00 PM",
-          breakStartTime: "6:00 AM",
-          breakEndTime: "10:30 AM",
-          lunchStartTime: "11:30 AM", 
-          lunchEndTime: "3:30 PM",
-          profilePictureUrl: "/placeholder.svg",
-          businessRegistrationUrl: "/placeholder.svg",
-          menuSheetUrl: "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit"
-        }
-      ];
-      
-      setRestaurants(mockRestaurants);
-      
-      // In production, uncomment this line:
-      // const data = await fetchRestaurantProfiles();
-      // setRestaurants(data);
+      const data = await fetchRestaurantProfiles();
+      setRestaurants(data);
     } catch (error) {
       console.error('Error loading restaurants:', error);
       toast({

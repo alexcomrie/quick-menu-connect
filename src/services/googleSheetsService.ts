@@ -1,4 +1,3 @@
-
 import Papa from 'papaparse';
 import { Restaurant, MenuItem } from '../types/restaurant';
 
@@ -146,17 +145,13 @@ export const fetchMenuItems = async (menuSheetUrl: string): Promise<MenuItem[]> 
   }
 
   try {
-    console.log('Fetching menu from network');
-    // Extract sheet ID from the URL and convert to CSV
-    const sheetIdMatch = menuSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-    if (!sheetIdMatch) {
-      throw new Error('Invalid Google Sheets URL');
+    console.log('Fetching menu from network:', menuSheetUrl);
+    
+    if (!menuSheetUrl) {
+      throw new Error("Menu sheet URL is missing.");
     }
     
-    const sheetId = sheetIdMatch[1];
-    const csvUrl = `${GOOGLE_SHEETS_BASE_URL}${sheetId}/export?format=csv&gid=0`;
-    
-    const response = await fetch(csvUrl);
+    const response = await fetch(menuSheetUrl);
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);

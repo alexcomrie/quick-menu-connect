@@ -168,31 +168,52 @@ export const fetchMenuItems = async (menuSheetUrl: string): Promise<MenuItem[]> 
             const data = results.data as string[][];
             // Skip header row
             const menuItems = data.slice(1).map((row) => {
-              const priceAndSize = row[1] || '';
+              const priceAndSize = row[2] || '';
               const prices: { [size: string]: number } = {};
               
-              // Parse price and size format: "SML[$200],MED[$300],LRG[$400]"
               if (priceAndSize) {
-                const priceSegments = priceAndSize.split(',');
-                priceSegments.forEach(segment => {
-                  const match = segment.trim().match(/^(.+?)\[\$?(\d+(?:\.\d{2})?)\]$/);
-                  if (match) {
-                    const size = match[1].trim();
-                    const price = parseFloat(match[2]);
-                    prices[size] = price;
+                if (priceAndSize.includes(':')) {
+                  const priceSegments = priceAndSize.split(',');
+                  priceSegments.forEach(segment => {
+                    const parts = segment.split(':');
+                    if (parts.length === 2) {
+                      const size = parts[0].trim();
+                      const price = parseFloat(parts[1].trim());
+                      if (!isNaN(price)) {
+                        prices[size] = price;
+                      }
+                    }
+                  });
+                } else {
+                  const price = parseFloat(priceAndSize.replace('$', '').trim());
+                  if (!isNaN(price)) {
+                    prices[''] = price;
                   }
-                });
+                }
               }
               
+              const category = (row[0] || '').toLowerCase();
+              let type: MenuItem['type'];
+              switch(category) {
+                case 'main': type = 'meat'; break;
+                case 'sides': type = 'side'; break;
+                case 'veg': type = 'veg'; break;
+                case 'drink': type = 'drink'; break;
+                case 'gravey': type = 'soup'; break;
+                default: type = 'more';
+              }
+              
+              const period = (row[3] || '').toLowerCase();
+
               return {
-                name: row[0] || '',
+                name: row[1] || '',
                 priceAndSize,
-                period: (row[2]?.toLowerCase() === 'lunch' ? 'lunch' : 'break') as 'break' | 'lunch',
-                type: (row[3]?.toLowerCase() || 'more') as 'meat' | 'side' | 'veg' | 'drink' | 'soup' | 'more',
-                gravey: row[4] || '',
+                period: period === 'lunch' ? 'lunch' : 'break',
+                type,
+                gravey: '', // Mapping for gravey is unclear
                 prices,
               };
-            });
+            }).filter(item => item.name); // Filter out empty rows
 
             // Save to cache
             saveToCache(cacheKey, menuItems);

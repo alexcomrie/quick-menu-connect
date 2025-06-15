@@ -29,9 +29,13 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
   const [pickupTime, setPickupTime] = useState('');
   const [showSizeDialog, setShowSizeDialog] = useState(false);
   const [selectedMenuItem, setSelectedMenuItem] = useState<MenuItem | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [showOrderBuilder, setShowOrderBuilder] = useState(false);
   const [currentOrder, setCurrentOrder] = useState<Partial<OrderItem>>({});
   const { toast } = useToast();
+
+  // Fixed categories order - matching the specified requirements
+  const fixedCategories = ['main', 'sides', 'veg', 'gravey', 'drink'];
 
   // Group menu items by their type, ensuring proper mapping
   const groupedItems = menuItems.reduce((acc, item) => {
@@ -42,12 +46,37 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
     return acc;
   }, {} as Record<string, MenuItem[]>);
 
-  console.log('Grouped items:', groupedItems);
-  console.log('Menu items:', menuItems);
+  // Get ordered categories - fixed categories first, then any additional ones
+  const getOrderedCategories = (): string[] => {
+    const allCategories = Object.keys(groupedItems);
+    const orderedCategories: string[] = [];
+    
+    // First, add fixed categories in their specified order (if they exist and have items)
+    fixedCategories.forEach(category => {
+      if (groupedItems[category] && groupedItems[category].length > 0) {
+        orderedCategories.push(category);
+      }
+    });
+    
+    // Then add any additional categories not in the fixed list
+    allCategories.forEach(category => {
+      if (!fixedCategories.includes(category) && groupedItems[category].length > 0) {
+        orderedCategories.push(category);
+      }
+    });
+    
+    return orderedCategories;
+  };
 
-  const handleAddMainDish = (item: MenuItem) => {
-    console.log('Adding main dish:', item);
+  const availableCategories = getOrderedCategories();
+
+  console.log('Grouped items:', groupedItems);
+  console.log('Available categories in order:', availableCategories);
+
+  const handleAddItem = (item: MenuItem, category: string) => {
+    console.log('Adding item:', item, 'from category:', category);
     setSelectedMenuItem(item);
+    setSelectedCategory(category);
     
     if (Object.keys(item.prices).length === 0) {
       toast({ 
@@ -169,6 +198,14 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
     return itemsTotal + deliveryFee;
   };
 
+  const clearOrderSummary = () => {
+    setOrderItems([]);
+    setCustomerName('');
+    setDeliveryAddress('');
+    setPickupTime('');
+    setDeliveryOption('pickup');
+  };
+
   const handleSendOrder = () => {
     if (!customerName.trim()) {
       toast({
@@ -261,6 +298,54 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
     // Open WhatsApp
     const whatsappUrl = `https://wa.me/${restaurant.whatsappNumber}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
+
+    // Clear order summary after sending
+    clearOrderSummary();
+    
+    toast({
+      title: "Order sent",
+      description: "Your order has been sent via WhatsApp and the order summary has been cleared.",
+    });
+  };
+
+  // Render category section for Add Item widget
+  const renderCategorySection = (category: string) => {
+    const items = groupedItems[category] || [];
+    if (items.length === 0) return null;
+
+    const categoryTitle = category.charAt(0).toUpperCase() + category.slice(1);
+
+    return (
+      <div key={category}>
+        <h3 className="font-semibold mb-2">Select {categoryTitle}</h3>
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          {items.map((item, index) => (
+            <Button
+              key={index}
+              variant="outline"
+              size="sm"
+              onClick={() => handleAddItem(item, category)}
+              className="justify-between h-auto p-3"
+            >
+              <div className="text-left">
+                <div className="font-medium">{item.name}</div>
+                {Object.keys(item.prices).length > 1 && (
+                  <div className="text-xs text-gray-500">
+                    {Object.entries(item.prices).map(([size, price]) => `${size}:$${price}`).join(', ')}
+                  </div>
+                )}
+                {Object.keys(item.prices).length === 1 && (
+                  <div className="text-xs text-gray-500">
+                    ${Object.values(item.prices)[0]}
+                  </div>
+                )}
+              </div>
+              <Plus className="h-4 w-4" />
+            </Button>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -283,31 +368,13 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
       </div>
 
       <div className="container mx-auto px-4 py-6 space-y-6">
-        {/* Menu Items */}
+        {/* Add Items */}
         <Card>
           <CardContent className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Select Main Dishes</h2>
-            <div className="grid gap-4">
-              {(groupedItems.main || []).map((item, index) => (
-                <div key={index} className="flex justify-between items-center p-4 border rounded-lg">
-                  <div>
-                    <h3 className="font-medium">{item.name}</h3>
-                    <div className="flex gap-2 mt-1">
-                      {Object.entries(item.prices).map(([size, price]) => (
-                        <span key={size} className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                          {size} ${price}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <Button
-                    onClick={() => handleAddMainDish(item)}
-                    size="sm"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+            <h2 className="text-lg font-semibold mb-4">Add Items</h2>
+            <div className="space-y-4">
+              {/* Render all categories in order */}
+              {availableCategories.map(category => renderCategorySection(category))}
             </div>
           </CardContent>
         </Card>
@@ -316,7 +383,16 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
         {orderItems.length > 0 && (
           <Card>
             <CardContent className="p-6">
-              <h2 className="text-lg font-semibold mb-4">Your Order</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">Your Order</h2>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setOrderItems([])}
+                >
+                  Clear All
+                </Button>
+              </div>
               <div className="space-y-4">
                 {orderItems.map((item) => (
                   <div key={item.id} className="flex justify-between items-start p-4 border rounded-lg">
@@ -493,22 +569,24 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
           <div className="space-y-6">
             {currentOrder.menuItem && (
               <div>
-                <h3 className="font-semibold">Main Dish</h3>
+                <h3 className="font-semibold">Selected Item</h3>
                 <p>{currentOrder.menuItem.name} {currentOrder.selectedSize} - ${currentOrder.selectedPrice}</p>
               </div>
             )}
 
-            {/* Mix Food Selection */}
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="mix-food"
-                checked={currentOrder.isMix}
-                onCheckedChange={(checked) => setCurrentOrder(prev => ({ ...prev, isMix: checked, secondMenuItem: undefined }))}
-              />
-              <Label htmlFor="mix-food">Mix Food</Label>
-            </div>
+            {/* Mix Food Selection - only for main dishes */}
+            {selectedCategory === 'main' && (
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="mix-food"
+                  checked={currentOrder.isMix}
+                  onCheckedChange={(checked) => setCurrentOrder(prev => ({ ...prev, isMix: checked, secondMenuItem: undefined }))}
+                />
+                <Label htmlFor="mix-food">Mix Food</Label>
+              </div>
+            )}
 
-            {currentOrder.isMix && (
+            {currentOrder.isMix && selectedCategory === 'main' && (
               <div>
                 <h3 className="font-semibold mb-2">Select Second Main Dish</h3>
                 <div className="grid grid-cols-2 gap-2">

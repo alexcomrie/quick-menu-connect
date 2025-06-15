@@ -18,11 +18,14 @@ export const MenuCategory: React.FC<MenuCategoryProps> = ({
   currentPeriod,
   orderMode,
 }) => {
+  // Capitalize the category name for display
+  const displayCategory = category.charAt(0).toUpperCase() + category.slice(1);
+
   return (
     <Card className="bg-white/90 backdrop-blur-sm">
       <CardContent className="p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-4 border-b pb-2 uppercase">
-          {category}
+          {displayCategory}
         </h2>
         <div className="grid gap-4">
           {items.map((item, index) => (

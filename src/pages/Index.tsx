@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { RestaurantCard } from '../components/RestaurantCard';
 import { MenuScreen } from '../components/MenuScreen';
@@ -5,10 +6,13 @@ import { RestaurantProfile } from '../components/RestaurantProfile';
 import { Restaurant } from '../types/restaurant';
 import { fetchRestaurantProfiles } from '../services/googleSheetsService';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
 
 const Index = () => {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -43,6 +47,32 @@ const Index = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+      console.log('Refreshing restaurant data...');
+      
+      // Clear cache and fetch fresh data
+      localStorage.removeItem('restaurant_profiles_cache');
+      const data = await fetchRestaurantProfiles();
+      setRestaurants(data);
+      
+      toast({
+        title: "Success",
+        description: "Restaurant list has been updated with the latest information.",
+      });
+    } catch (error) {
+      console.error('Error refreshing restaurants:', error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh restaurants. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -84,9 +114,21 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
       <div className="container mx-auto px-4 py-8">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            🍽️ Restaurant Link
-          </h1>
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <h1 className="text-4xl font-bold text-gray-900">
+              🍽️ Restaurant Link
+            </h1>
+            <Button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              variant="outline"
+              size="sm"
+              className="ml-4"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </Button>
+          </div>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             Discover daily menus from your favorite local restaurants. 
             Fresh ingredients, made with love, delivered to your door.

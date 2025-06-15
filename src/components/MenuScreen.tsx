@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowLeft, User, Plus } from 'lucide-react';
+import { ArrowLeft, User, Plus, RefreshCw } from 'lucide-react';
 import { Restaurant, MenuItem } from '../types/restaurant';
 import { getCurrentPeriod, getRandomVibrantColor } from '../utils/timeUtils';
 import { fetchMenuItems } from '../services/menuService';
@@ -21,6 +20,7 @@ export const MenuScreen: React.FC<MenuScreenProps> = ({
 }) => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showOrder, setShowOrder] = useState(false);
   const [orderMode, setOrderMode] = useState(false);
@@ -115,6 +115,36 @@ export const MenuScreen: React.FC<MenuScreenProps> = ({
     }
   };
 
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+      console.log('Refreshing menu items for restaurant:', restaurant.name);
+      
+      // Clear menu cache for this restaurant
+      const cacheKey = `menu_cache_${btoa(restaurant.menuSheetUrl)}`;
+      localStorage.removeItem(cacheKey);
+      
+      // Fetch fresh menu data
+      const items = await fetchMenuItems(restaurant.menuSheetUrl);
+      console.log('Refreshed menu items:', items);
+      setMenuItems(items);
+      
+      toast({
+        title: "Success",
+        description: "Menu has been updated with the latest information.",
+      });
+    } catch (error) {
+      console.error('Error refreshing menu items:', error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh menu. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   // Filter menu items for current period
   const getMenuForPeriod = (allItems: MenuItem[], period: 'breakfast' | 'lunch' | 'closed') => {
     if (period === 'closed') {
@@ -202,14 +232,27 @@ export const MenuScreen: React.FC<MenuScreenProps> = ({
               Back
             </Button>
             
-            <Button
-              onClick={() => setShowProfile(true)}
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-white/20"
-            >
-              <User className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                variant="ghost"
+                size="sm"
+                className="text-white hover:bg-white/20"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                {refreshing ? 'Updating...' : 'Refresh'}
+              </Button>
+              
+              <Button
+                onClick={() => setShowProfile(true)}
+                variant="ghost"
+                size="sm"
+                className="text-white hover:bg-white/20"
+              >
+                <User className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           <div className="text-center text-white mb-8">

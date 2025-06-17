@@ -35,13 +35,21 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
   const [currentOrder, setCurrentOrder] = useState<Partial<OrderItem>>({});
   const [selectedSpecials, setSelectedSpecials] = useState<string[]>([]);
   const [selectedSecondSpecials, setSelectedSecondSpecials] = useState<string[]>([]);
+  const [sideSpecials, setSideSpecials] = useState<{[itemName: string]: string[]}>({});
+  const [vegSpecials, setVegSpecials] = useState<{[itemName: string]: string[]}>({});
+  const [graveySpecials, setGraveySpecials] = useState<{[itemName: string]: string[]}>({});
   const { toast } = useToast();
 
   // Fixed categories order - matching the specified requirements
   const fixedCategories = ['main', 'sides', 'veg', 'gravey', 'drink'];
 
-  // Group menu items by their type, ensuring proper mapping
-  const groupedItems = menuItems.reduce((acc, item) => {
+  // Filter out "Continuous" items and group menu items by their type
+  const filteredMenuItems = menuItems.filter(item => 
+    item.name.toLowerCase() !== 'continuous' && 
+    item.type.toLowerCase() !== 'continuous'
+  );
+
+  const groupedItems = filteredMenuItems.reduce((acc, item) => {
     // Use the actual category from the CSV (normalize to lowercase for consistency)
     const type = item.type.toLowerCase();
     if (!acc[type]) acc[type] = [];
@@ -200,6 +208,9 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
       setCurrentOrder({});
       setSelectedSpecials([]);
       setSelectedSecondSpecials([]);
+      setSideSpecials({});
+      setVegSpecials({});
+      setGraveySpecials({});
       setShowOrderBuilder(false);
       toast({
         title: "Item added",
@@ -338,17 +349,53 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
       
       if (order.sides.length > 0) {
         message += 'Sides:\n';
-        order.sides.forEach(side => message += `- ${side.name}\n`);
+        order.sides.forEach(side => {
+          message += `- ${side.name}`;
+          // Add side specials if any
+          const sideSpecialsList = sideSpecials[side.name];
+          if (sideSpecialsList && sideSpecialsList.length > 0) {
+            if (side.specialOption === 'select') {
+              message += ` with ${sideSpecialsList.join(' & ')}`;
+            } else if (side.specialOption === 'exclude') {
+              message += `\n    - ${sideSpecialsList.map(s => `No ${s}`).join('\n    - ')}`;
+            }
+          }
+          message += '\n';
+        });
       }
       
       if (order.vegetables.length > 0) {
         message += 'Vegetables:\n';
-        order.vegetables.forEach(veg => message += `- ${veg.name}\n`);
+        order.vegetables.forEach(veg => {
+          message += `- ${veg.name}`;
+          // Add veg specials if any
+          const vegSpecialsList = vegSpecials[veg.name];
+          if (vegSpecialsList && vegSpecialsList.length > 0) {
+            if (veg.specialOption === 'select') {
+              message += ` with ${vegSpecialsList.join(' & ')}`;
+            } else if (veg.specialOption === 'exclude') {
+              message += `\n    - ${vegSpecialsList.map(s => `No ${s}`).join('\n    - ')}`;
+            }
+          }
+          message += '\n';
+        });
       }
 
       if (order.gravey.length > 0) {
         message += 'Gravey:\n';
-        order.gravey.forEach(gravey => message += `- ${gravey.name}\n`);
+        order.gravey.forEach(gravey => {
+          message += `- ${gravey.name}`;
+          // Add gravey specials if any
+          const graveySpecialsList = graveySpecials[gravey.name];
+          if (graveySpecialsList && graveySpecialsList.length > 0) {
+            if (gravey.specialOption === 'select') {
+              message += ` with ${graveySpecialsList.join(' & ')}`;
+            } else if (gravey.specialOption === 'exclude') {
+              message += `\n    - ${graveySpecialsList.map(s => `No ${s}`).join('\n    - ')}`;
+            }
+          }
+          message += '\n';
+        });
       }
       
       if (order.drink) {
@@ -375,6 +422,42 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
       title: "Order sent",
       description: "Your order has been sent via WhatsApp and the order summary has been cleared.",
     });
+  };
+
+  // Helper function to handle special selection for sides/veg/gravey
+  const handleItemSpecialSelection = (
+    item: MenuItem, 
+    category: 'sides' | 'veg' | 'gravey',
+    specialsState: {[itemName: string]: string[]},
+    setSpecialsState: React.Dispatch<React.SetStateAction<{[itemName: string]: string[]}>>
+  ) => {
+    const currentSpecials = specialsState[item.name] || [];
+    const toggleSpecial = (special: string) => {
+      const isSelected = currentSpecials.includes(special);
+      let newSpecials;
+      
+      if (isSelected) {
+        newSpecials = currentSpecials.filter(s => s !== special);
+      } else {
+        // Check special cap
+        if (typeof item.specialCap === 'number' && currentSpecials.length >= item.specialCap) {
+          toast({
+            title: "Selection limit reached",
+            description: `You can only select up to ${item.specialCap} options.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        newSpecials = [...currentSpecials, special];
+      }
+      
+      setSpecialsState(prev => ({
+        ...prev,
+        [item.name]: newSpecials
+      }));
+    };
+
+    return toggleSpecial;
   };
 
   // Render category section for Add Item widget
@@ -791,25 +874,65 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
             {(groupedItems.sides || []).length > 0 && (
               <div>
                 <h3 className="font-semibold mb-2">Select Sides</h3>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-2">
                   {(groupedItems.sides || []).map((item, index) => (
-                    <Button
-                      key={index}
-                      variant={currentOrder.sides?.some(s => s.name === item.name) ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => {
-                        const sides = currentOrder.sides || [];
-                        const exists = sides.some(s => s.name === item.name);
-                        setCurrentOrder(prev => ({
-                          ...prev,
-                          sides: exists 
-                            ? sides.filter(s => s.name !== item.name)
-                            : [...sides, item]
-                        }));
-                      }}
-                    >
-                      {item.name}
-                    </Button>
+                    <div key={index}>
+                      <div className="flex items-center justify-between">
+                        <Button
+                          variant={currentOrder.sides?.some(s => s.name === item.name) ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            const sides = currentOrder.sides || [];
+                            const exists = sides.some(s => s.name === item.name);
+                            setCurrentOrder(prev => ({
+                              ...prev,
+                              sides: exists 
+                                ? sides.filter(s => s.name !== item.name)
+                                : [...sides, item]
+                            }));
+                            // Clear specials when unselecting item
+                            if (exists) {
+                              setSideSpecials(prev => {
+                                const updated = { ...prev };
+                                delete updated[item.name];
+                                return updated;
+                              });
+                            }
+                          }}
+                          className="flex-1 mr-2"
+                        >
+                          {item.name}
+                        </Button>
+                      </div>
+                      
+                      {/* Show special selection for selected sides */}
+                      {currentOrder.sides?.some(s => s.name === item.name) && 
+                       item.specials && item.specials.length > 0 && (
+                        <div className="ml-4 mt-2 p-2 border rounded">
+                          <h4 className="text-sm font-medium mb-1">
+                            {item.specialOption === 'select' ? 'Select Options' : 'Exclude Options'}
+                            {typeof item.specialCap === 'number' && (
+                              <span className="text-xs text-gray-600 ml-1">(Max {item.specialCap})</span>
+                            )}
+                          </h4>
+                          <div className="grid grid-cols-2 gap-1">
+                            {item.specials.map((special) => (
+                              <div key={special} className="flex items-center space-x-1">
+                                <Checkbox
+                                  id={`side-${item.name}-${special}`}
+                                  checked={(sideSpecials[item.name] || []).includes(special)}
+                                  onCheckedChange={(checked) => {
+                                    const toggleSpecial = handleItemSpecialSelection(item, 'sides', sideSpecials, setSideSpecials);
+                                    toggleSpecial(special);
+                                  }}
+                                />
+                                <Label htmlFor={`side-${item.name}-${special}`} className="text-xs">{special}</Label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>
@@ -819,25 +942,65 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
             {(groupedItems.veg || []).length > 0 && (
               <div>
                 <h3 className="font-semibold mb-2">Select Vegetables</h3>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-2">
                   {(groupedItems.veg || []).map((item, index) => (
-                    <Button
-                      key={index}
-                      variant={currentOrder.vegetables?.some(v => v.name === item.name) ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => {
-                        const vegetables = currentOrder.vegetables || [];
-                        const exists = vegetables.some(v => v.name === item.name);
-                        setCurrentOrder(prev => ({
-                          ...prev,
-                          vegetables: exists 
-                            ? vegetables.filter(v => v.name !== item.name)
-                            : [...vegetables, item]
-                        }));
-                      }}
-                    >
-                      {item.name}
-                    </Button>
+                    <div key={index}>
+                      <div className="flex items-center justify-between">
+                        <Button
+                          variant={currentOrder.vegetables?.some(v => v.name === item.name) ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            const vegetables = currentOrder.vegetables || [];
+                            const exists = vegetables.some(v => v.name === item.name);
+                            setCurrentOrder(prev => ({
+                              ...prev,
+                              vegetables: exists 
+                                ? vegetables.filter(v => v.name !== item.name)
+                                : [...vegetables, item]
+                            }));
+                            // Clear specials when unselecting item
+                            if (exists) {
+                              setVegSpecials(prev => {
+                                const updated = { ...prev };
+                                delete updated[item.name];
+                                return updated;
+                              });
+                            }
+                          }}
+                          className="flex-1 mr-2"
+                        >
+                          {item.name}
+                        </Button>
+                      </div>
+                      
+                      {/* Show special selection for selected vegetables */}
+                      {currentOrder.vegetables?.some(v => v.name === item.name) && 
+                       item.specials && item.specials.length > 0 && (
+                        <div className="ml-4 mt-2 p-2 border rounded">
+                          <h4 className="text-sm font-medium mb-1">
+                            {item.specialOption === 'select' ? 'Select Options' : 'Exclude Options'}
+                            {typeof item.specialCap === 'number' && (
+                              <span className="text-xs text-gray-600 ml-1">(Max {item.specialCap})</span>
+                            )}
+                          </h4>
+                          <div className="grid grid-cols-2 gap-1">
+                            {item.specials.map((special) => (
+                              <div key={special} className="flex items-center space-x-1">
+                                <Checkbox
+                                  id={`veg-${item.name}-${special}`}
+                                  checked={(vegSpecials[item.name] || []).includes(special)}
+                                  onCheckedChange={(checked) => {
+                                    const toggleSpecial = handleItemSpecialSelection(item, 'veg', vegSpecials, setVegSpecials);
+                                    toggleSpecial(special);
+                                  }}
+                                />
+                                <Label htmlFor={`veg-${item.name}-${special}`} className="text-xs">{special}</Label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>
@@ -847,25 +1010,65 @@ export const OrderScreen: React.FC<OrderScreenProps> = ({
             {(groupedItems.gravey || []).length > 0 && (
               <div>
                 <h3 className="font-semibold mb-2">Select Gravey</h3>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-2">
                   {(groupedItems.gravey || []).map((item, index) => (
-                    <Button
-                      key={index}
-                      variant={currentOrder.gravey?.some(g => g.name === item.name) ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => {
-                        const gravey = currentOrder.gravey || [];
-                        const exists = gravey.some(g => g.name === item.name);
-                        setCurrentOrder(prev => ({
-                          ...prev,
-                          gravey: exists
-                            ? gravey.filter(g => g.name !== item.name)
-                            : [...gravey, item]
-                        }));
-                      }}
-                    >
-                      {item.name}
-                    </Button>
+                    <div key={index}>
+                      <div className="flex items-center justify-between">
+                        <Button
+                          variant={currentOrder.gravey?.some(g => g.name === item.name) ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            const gravey = currentOrder.gravey || [];
+                            const exists = gravey.some(g => g.name === item.name);
+                            setCurrentOrder(prev => ({
+                              ...prev,
+                              gravey: exists
+                                ? gravey.filter(g => g.name !== item.name)
+                                : [...gravey, item]
+                            }));
+                            // Clear specials when unselecting item
+                            if (exists) {
+                              setGraveySpecials(prev => {
+                                const updated = { ...prev };
+                                delete updated[item.name];
+                                return updated;
+                              });
+                            }
+                          }}
+                          className="flex-1 mr-2"
+                        >
+                          {item.name}
+                        </Button>
+                      </div>
+                      
+                      {/* Show special selection for selected gravey */}
+                      {currentOrder.gravey?.some(g => g.name === item.name) && 
+                       item.specials && item.specials.length > 0 && (
+                        <div className="ml-4 mt-2 p-2 border rounded">
+                          <h4 className="text-sm font-medium mb-1">
+                            {item.specialOption === 'select' ? 'Select Options' : 'Exclude Options'}
+                            {typeof item.specialCap === 'number' && (
+                              <span className="text-xs text-gray-600 ml-1">(Max {item.specialCap})</span>
+                            )}
+                          </h4>
+                          <div className="grid grid-cols-2 gap-1">
+                            {item.specials.map((special) => (
+                              <div key={special} className="flex items-center space-x-1">
+                                <Checkbox
+                                  id={`gravey-${item.name}-${special}`}
+                                  checked={(graveySpecials[item.name] || []).includes(special)}
+                                  onCheckedChange={(checked) => {
+                                    const toggleSpecial = handleItemSpecialSelection(item, 'gravey', graveySpecials, setGraveySpecials);
+                                    toggleSpecial(special);
+                                  }}
+                                />
+                                <Label htmlFor={`gravey-${item.name}-${special}`} className="text-xs">{special}</Label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>

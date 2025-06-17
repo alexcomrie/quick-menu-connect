@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { RestaurantCard } from '../components/RestaurantCard';
 import { MenuScreen } from '../components/MenuScreen';
 import { RestaurantProfile } from '../components/RestaurantProfile';
+import { JamaicaClock } from '../components/JamaicaClock';
 import { Restaurant } from '../types/restaurant';
 import { fetchRestaurantProfiles } from '../services/googleSheetsService';
 import { useToast } from '@/hooks/use-toast';
@@ -127,6 +129,9 @@ const Index = () => {
               <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
               {refreshing ? 'Refreshing...' : 'Refresh'}
             </Button>
+          </div>
+          <div className="flex justify-center mb-4">
+            <JamaicaClock />
           </div>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             Discover daily menus from your favorite local restaurants.

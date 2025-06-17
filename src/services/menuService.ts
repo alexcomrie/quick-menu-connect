@@ -50,9 +50,12 @@ export const fetchMenuItems = async (menuSheetUrl: string): Promise<MenuItem[]> 
                 const name = (row[1] || '').trim();
                 const priceAndSize = (row[2] || '').trim();
                 const periodRaw = (row[3] || '').toLowerCase().trim();
-                const special = (row[4] || '').trim();
-                const specialOption = (row[5] || '').toLowerCase().trim();
-                const specialCap = (row[6] || '').trim();
+                const displayDate = (row[4] || '').trim(); // Not used but exists
+                const special = (row[5] || '').trim(); // Column #6 (0-indexed as 5)
+                const specialOption = (row[6] || '').toLowerCase().trim(); // Column #7 (0-indexed as 6)
+                const specialCap = (row[7] || '').trim(); // Column #8 (0-indexed as 7)
+                
+                console.log(`Special data for ${name}:`, { special, specialOption, specialCap });
                 
                 // Skip rows with missing essential data
                 if (!category || !name) {
